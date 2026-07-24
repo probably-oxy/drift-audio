@@ -1,0 +1,4 @@
+Fixes audio glitches and loudness inconsistencies.
+
+* Fixed: SPEAKER mode could cause audio dropouts and volume pumping on some devices — the small-speaker voicing now runs in-app instead of relying on the device's own audio effects, which weren't reliable everywhere
+* Fixed: some sounds played noticeably louder or quieter than others — levels are now aligned across the whole catalogue

@@ -22,6 +22,9 @@ class FileSoundSource(
     override val displayName = sound.name
     override val variants = sound.variants
 
+    /** See [Sound.gainTrim]. */
+    val gainTrim = sound.gainTrim
+
     override var variantId: String? = sound.defaultVariantId
         set(value) {
             require(value == null || variants.any { it.id == value }) {

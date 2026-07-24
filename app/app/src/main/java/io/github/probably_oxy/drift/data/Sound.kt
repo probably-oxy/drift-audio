@@ -57,4 +57,12 @@ data class Sound(
     val variants: List<Variant> = emptyList(),
     val defaultVariantId: String? = null,
     val tags: SoundTags = SoundTags(),
+    /**
+     * Linear gain multiplier applied on top of the user's layer volume, to
+     * align this sound's base loudness with the rest of the catalogue (files
+     * were normalised at encode time but single-pass loudnorm undershoots
+     * unpredictably on high-dynamic-range sources — see Catalogue.kt for the
+     * measured values this is derived from). 1.0 = no change.
+     */
+    val gainTrim: Float = 1f,
 )

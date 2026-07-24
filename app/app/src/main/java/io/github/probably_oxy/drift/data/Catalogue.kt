@@ -4,6 +4,14 @@ package io.github.probably_oxy.drift.data
  * The master sound catalogue: every IN APP sound, ported from
  * sounds/CATALOGUE.md and the per-sound LICENSE.txt files.
  * res/raw holds the audio; this holds everything else.
+ *
+ * [Sound.gainTrim] values below were measured 2026-07-24 via EBU R128
+ * (`ffmpeg -af ebur128`) on the shipped res/raw files, averaged per sound
+ * across segments, then scaled to a common -19.5 LUFS target (attenuation
+ * only, except interstellarplasma which is capped at +2 dB boost to avoid
+ * amplifying its already-wide dynamic range into clipping — see GitHub #9;
+ * it still runs ~2.5 dB under target and needs a proper two-pass loudnorm
+ * re-encode to close the gap). Re-measure and update if a sound is re-sourced.
  */
 object Catalogue {
 
@@ -57,22 +65,27 @@ object Catalogue {
                 Variant("distant", "FAR"),
             ),
             defaultVariantId = "openair",
+            gainTrim = 0.750f, // measured -17.0 LUFS avg
         ),
         Sound(
             id = "brook", name = "Brook", description = "Flowing stream",
             type = SoundType.REC, license = bia12, segmentCount = 2,
+            // measured -19.45 LUFS avg — already on target, no trim needed
         ),
         Sound(
             id = "fire", name = "Fireplace", description = "Crackling fire",
             type = SoundType.REC, license = fireBlend, segmentCount = 4,
+            gainTrim = 1.076f, // measured -20.15 LUFS avg (seg 3 alone is -17.7, an outlier)
         ),
         Sound(
             id = "wind", name = "Wind", description = "Forest wind",
             type = SoundType.REC, license = muges, segmentCount = 3,
+            gainTrim = 0.947f, // measured -19.03 LUFS avg
         ),
         Sound(
             id = "crickets", name = "Crickets", description = "Night insect chorus",
             type = SoundType.REC, license = wolfgang, segmentCount = 1,
+            gainTrim = 0.944f, // measured -19.0 LUFS
         ),
         Sound(
             id = "thunder", name = "Thunder", description = "Distant storm claps",
@@ -95,6 +108,7 @@ object Catalogue {
                 ),
             ),
             defaultVariantId = "busy",
+            gainTrim = 0.803f, // measured -17.6 LUFS avg
         ),
 
         // ── REC: space ───────────────────────────────────────────────────
@@ -110,6 +124,10 @@ object Catalogue {
             segmentCount = 2,
             variants = listOf(Variant("raw"), Variant("drift")),
             defaultVariantId = "raw",
+            // measured -22.6 LUFS — capped at +2 dB boost to avoid amplifying its
+            // wide dynamic range (LRA ~10-12 LU) into clipping; still ~2.5 dB
+            // under target. Needs a two-pass loudnorm re-encode to fully close.
+            gainTrim = 1.259f,
         ),
         Sound(
             id = "marswind", name = "Mars Wind",
@@ -121,11 +139,13 @@ object Catalogue {
                 url = "https://www.nasa.gov/solar-system/nasa-insight-lander-detects-stunning-meteoroid-impact-on-mars/",
             ),
             segmentCount = 3,
+            // measured -19.5 LUFS avg — already on target, no trim needed
         ),
         Sound(
             id = "lifesupport", name = "Life Support",
             description = "Vents and machinery humming below decks",
             type = SoundType.REC, license = xkeril, segmentCount = 3,
+            gainTrim = 0.806f, // measured -17.63 LUFS avg
         ),
         Sound(
             id = "thruster", name = "Thruster", description = "Ship engine roar",
@@ -138,6 +158,7 @@ object Catalogue {
                 ),
             ),
             defaultVariantId = "busy",
+            gainTrim = 0.844f, // measured -18.03 LUFS avg
         ),
         Sound(
             id = "spaceWhale", name = "Space Whale",
@@ -164,6 +185,7 @@ object Catalogue {
                 ),
             ),
             defaultVariantId = "normal",
+            gainTrim = 0.794f, // measured -17.5 LUFS avg
         ),
 
         // ── SYN: no audio files yet (pre-render vs. synthesis deferred) ──

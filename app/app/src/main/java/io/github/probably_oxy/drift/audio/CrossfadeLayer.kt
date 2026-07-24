@@ -39,7 +39,13 @@ class CrossfadeLayer(
     context: Context,
     val source: FileSoundSource,
     private val audioSessionId: Int,
+    eqEnabled: Boolean,
 ) {
+
+    // One processor per deck — each ExoPlayer has its own audio sink and thus
+    // its own filter state (see VoicingAudioProcessor's per-channel Biquad state).
+    private val voicingA = VoicingAudioProcessor(source.gainTrim).apply { this.eqEnabled = eqEnabled }
+    private val voicingB = VoicingAudioProcessor(source.gainTrim).apply { this.eqEnabled = eqEnabled }
 
     private val items: List<MediaItem> = source.segmentResIds.map { resId ->
         MediaItem.fromUri(
@@ -128,12 +134,12 @@ class CrossfadeLayer(
         }
     }
 
-    private val deckA = Deck(buildPlayer(context))
-    private val deckB = Deck(buildPlayer(context))
+    private val deckA = Deck(buildPlayer(context, voicingA))
+    private val deckB = Deck(buildPlayer(context, voicingB))
     private var active = deckA
 
-    private fun buildPlayer(context: Context): ExoPlayer =
-        ExoPlayer.Builder(context)
+    private fun buildPlayer(context: Context, voicing: VoicingAudioProcessor): ExoPlayer =
+        ExoPlayer.Builder(context, VoicingRenderersFactory(context, voicing))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -143,9 +149,16 @@ class CrossfadeLayer(
             )
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
-            // Share one session across every layer so OutputProcessor's effects
-            // process the combined mix, not each layer separately.
+            // Shared session id (harmless; lets system-level tools that key off
+            // it still see the combined mix). No longer load-bearing for our own
+            // voicing, which now runs per-deck via VoicingAudioProcessor.
             .apply { audioSessionId = this@CrossfadeLayer.audioSessionId }
+
+    /** Toggled by the engine when [io.github.probably_oxy.drift.data.OutputMode] changes. */
+    fun setEqEnabled(enabled: Boolean) {
+        voicingA.eqEnabled = enabled
+        voicingB.eqEnabled = enabled
+    }
 
     // ── Engine-facing API ────────────────────────────────────────────────────
 

@@ -43,11 +43,14 @@ class PlaybackEngine(private val context: Context) {
     private val audioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    // One shared audio session for every layer so OutputProcessor's effects
-    // process the whole mix rather than each layer in isolation.
+    // Shared audio session id across every layer (harmless bookkeeping for any
+    // system-level tools that key off it; no longer load-bearing for voicing,
+    // which runs per-deck via VoicingAudioProcessor — see CrossfadeLayer).
     private val audioSessionId = audioManager.generateAudioSessionId()
-    private val outputProcessor = OutputProcessor(audioSessionId)
     private var outputMode = OutputMode.SPEAKER
+
+    /** SPEAKER applies the bass-lift/treble-tame voicing; STEREO/PHONES are flat. */
+    private val eqEnabled: Boolean get() = outputMode == OutputMode.SPEAKER
 
     private val focusRequest: AudioFocusRequest =
         AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
@@ -94,15 +97,12 @@ class PlaybackEngine(private val context: Context) {
         // First active layer turns playback intent on (tap-to-play UX).
         if (layers.isEmpty()) masterPlaying = true
 
-        val wasEmpty = layers.isEmpty()
-        val layer = CrossfadeLayer(context, source, audioSessionId)
+        val layer = CrossfadeLayer(context, source, audioSessionId, eqEnabled)
 
         // Insert and acquire focus BEFORE starting: isPlaying depends on the
         // layer count and focus, so both must be settled before the layer fades in.
         layers[source.id] = layer
         ensureFocus()
-        // (Re)attach output effects once the shared session has live audio.
-        if (wasEmpty) outputProcessor.apply(outputMode)
         layer.start(play = isPlaying, effectiveVolume = effectiveVolume(source.volume))
         onStateChanged?.invoke()
     }
@@ -143,10 +143,10 @@ class PlaybackEngine(private val context: Context) {
         onStateChanged?.invoke()
     }
 
-    /** Global listening-context voicing; applied to the shared mix session. */
+    /** Global listening-context voicing; applied to every active layer. */
     fun setOutputMode(mode: OutputMode) {
         outputMode = mode
-        outputProcessor.apply(mode)
+        layers.values.forEach { it.setEqEnabled(eqEnabled) }
     }
 
     // ── Global transport (drives the notification play/pause) ────────────────
@@ -192,7 +192,6 @@ class PlaybackEngine(private val context: Context) {
     fun release() {
         layers.values.forEach { it.release() }
         layers.clear()
-        outputProcessor.release()
         abandonFocus()
         onStateChanged = null
     }
