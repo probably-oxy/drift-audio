@@ -1,0 +1,4 @@
+Fixes a bug where rotating the phone (or otherwise recreating the screen) made a playing mix look stopped.
+
+* Fixed: after rotating the phone, active layers stopped showing as playing and Mute/Stop All became unusable, even though the mix was still audible
+* Fixed: tapping a layer sometimes required a second tap elsewhere before it visibly turned on
