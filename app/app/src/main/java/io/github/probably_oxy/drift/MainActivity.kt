@@ -71,6 +71,7 @@ import io.github.probably_oxy.drift.data.PresetLibrary
 import io.github.probably_oxy.drift.data.PresetStore
 import io.github.probably_oxy.drift.data.SettingsStore
 import io.github.probably_oxy.drift.data.Sound
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.LinearEasing
@@ -208,6 +209,28 @@ fun MixerScreen(
 
     LaunchedEffect(Unit) { userPresets.addAll(presetStore.load()) }
 
+    // Re-derive activeIds/volumes/variantIds from the service's own record of the
+    // live mix rather than trusting local Compose state to have survived — it
+    // doesn't survive an Activity recreate (e.g. rotation), while the mix itself
+    // keeps playing in the always-alive PlaybackService. Called on every extras
+    // publish (i.e. after every layer change, same as timerRemainingMs/muted/
+    // outputMode above), so local optimistic mutation in toggle()/setVolume()/
+    // setVariant() below is immediately confirmed rather than fought.
+    fun applyActiveLayers(extras: Bundle) {
+        val json = extras.getString(PlaybackService.EXTRA_ACTIVE_LAYERS) ?: return
+        val layers = runCatching {
+            PresetStore.DriftJson.decodeFromString<List<PresetLayer>>(json)
+        }.getOrNull() ?: return
+        activeIds.clear()
+        volumes.clear()
+        variantIds.clear()
+        layers.forEach { layer ->
+            activeIds.add(layer.soundId)
+            volumes[layer.soundId] = layer.volume
+            variantIds[layer.soundId] = layer.variantId
+        }
+    }
+
     DisposableEffect(Unit) {
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
         val future = MediaController.Builder(context, token)
@@ -220,6 +243,7 @@ fun MixerScreen(
                     )
                     outputMode = OutputMode.fromName(extras.getString(PlaybackService.EXTRA_OUTPUT_MODE))
                     muted = extras.getBoolean(PlaybackService.EXTRA_MUTED, false)
+                    applyActiveLayers(extras)
                 }
             })
             .buildAsync()
@@ -237,6 +261,7 @@ fun MixerScreen(
                     c.sessionExtras.getString(PlaybackService.EXTRA_OUTPUT_MODE),
                 )
                 muted = c.sessionExtras.getBoolean(PlaybackService.EXTRA_MUTED, false)
+                applyActiveLayers(c.sessionExtras)
                 listener = object : Player.Listener {
                     override fun onIsPlayingChanged(playing: Boolean) {
                         isPlaying = playing
@@ -266,11 +291,12 @@ fun MixerScreen(
                 putString(PlaybackService.KEY_VARIANT_ID, variantId)
             },
         )
-        if (sound.id in activeIds) {
-            activeIds.remove(sound.id)
-        } else {
-            activeIds.add(sound.id)
-        }
+        // activeIds is no longer mutated here: the session's extras echo
+        // (applyActiveLayers, above) is the single writer for on/off state now.
+        // sendCustomCommand can dispatch onCustomCommand/publishExtras/
+        // onExtrasChanged synchronously (same-process session) before this call
+        // returns, so a manual toggle here could read already-updated state and
+        // flip it right back — exactly the bug this replaces.
     }
 
     fun setVolume(sound: Sound, volume: Float) {

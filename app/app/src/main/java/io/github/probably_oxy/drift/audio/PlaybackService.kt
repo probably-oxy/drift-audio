@@ -14,6 +14,7 @@ import io.github.probably_oxy.drift.data.OutputMode
 import io.github.probably_oxy.drift.data.Preset
 import io.github.probably_oxy.drift.data.PresetStore
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
 /**
  * The MediaSessionService hosts a [PlaybackEngine] (many layers) fronted by a
@@ -129,12 +130,14 @@ class PlaybackService : MediaSessionService() {
         publishExtras()
     }
 
-    /** Broadcast current UI-facing state (timer + output mode + mute) to all controllers. */
+    /** Broadcast current UI-facing state (timer + output mode + mute + active
+     *  layers) to all controllers. */
     private fun publishExtras() {
         mediaSession?.sessionExtras = Bundle().apply {
             putLong(EXTRA_TIMER_REMAINING_MS, timerRemainingMs)
             putString(EXTRA_OUTPUT_MODE, outputMode.name)
             putBoolean(EXTRA_MUTED, engine.isMuted)
+            putString(EXTRA_ACTIVE_LAYERS, PresetStore.DriftJson.encodeToString(engine.activeLayersSnapshot()))
         }
     }
 
@@ -264,6 +267,7 @@ class PlaybackService : MediaSessionService() {
         const val EXTRA_TIMER_REMAINING_MS = "timerRemainingMs"
         const val EXTRA_OUTPUT_MODE = "outputMode"
         const val EXTRA_MUTED = "muted"
+        const val EXTRA_ACTIVE_LAYERS = "activeLayers"
         const val TIMER_INACTIVE = -1L
 
         private const val TIMER_FADE_MS = 4000L

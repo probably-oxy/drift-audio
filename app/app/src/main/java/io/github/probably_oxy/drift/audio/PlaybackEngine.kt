@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.media.AudioAttributes as PlatformAudioAttributes
 import android.media.AudioFocusRequest
 import io.github.probably_oxy.drift.data.OutputMode
+import io.github.probably_oxy.drift.data.PresetLayer
 
 /**
  * The multi-layer mixer. Owns one [CrossfadeLayer] per active sound and mixes
@@ -77,6 +78,12 @@ class PlaybackEngine(private val context: Context) {
     fun isLayerActive(id: String): Boolean = layers.containsKey(id)
 
     fun activeLayerIds(): Set<String> = layers.keys.toSet()
+
+    /** Snapshot of the live mix (id, variant, volume per active layer), for the
+     *  client to rehydrate its own state from — e.g. after an Activity recreate
+     *  (rotation) or a fresh MediaController connection. */
+    fun activeLayersSnapshot(): List<PresetLayer> =
+        layers.map { (id, layer) -> PresetLayer(id, layer.source.variantId, layer.source.volume) }
 
     // ── Layer management ────────────────────────────────────────────────────
 
