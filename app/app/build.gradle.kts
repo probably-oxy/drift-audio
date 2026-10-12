@@ -33,6 +33,12 @@ android {
     buildFeatures {
         compose = true
     }
+    // JVM unit tests run against stubbed android.* classes. Return defaults
+    // instead of throwing, so code that merely touches one (e.g. the theme
+    // palettes' colorToHSV) can still be loaded in a test.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {

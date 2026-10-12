@@ -144,7 +144,7 @@ object SoundLibrary {
                 val bytes = input.use { inp -> dest.outputStream().use { out -> inp.copyTo(out) } }
                 if (bytes > MAX_FILE_BYTES) return fail(dir, "File ${i + 1} is over 200 MB")
                 val probe = probe(dest) ?: return fail(dir, "File ${i + 1} isn't a playable audio file")
-                segments += split(fileName, probe.durationMs, autoSplit)
+                segments += CustomSound.split(fileName, probe.durationMs, autoSplit)
             }
             if (segments.isEmpty()) return fail(dir, "No files selected")
             val sound = CustomSound(
@@ -187,23 +187,6 @@ object SoundLibrary {
         }
     }
 
-    /**
-     * Cut a long file into equal windows of roughly [SPLIT_WINDOW_MS]. Files
-     * shorter than [SPLIT_MIN_MS], or of unknown length, stay whole.
-     */
-    private fun split(fileName: String, durationMs: Long?, autoSplit: Boolean): List<CustomSegment> {
-        if (!autoSplit || durationMs == null || durationMs < SPLIT_MIN_MS) return listOf(CustomSegment(fileName))
-        val count = (durationMs / SPLIT_WINDOW_MS).toInt().coerceAtLeast(2)
-        val window = durationMs / count
-        return (0 until count).map { i ->
-            CustomSegment(
-                file = fileName,
-                startMs = i * window,
-                endMs = if (i == count - 1) null else (i + 1) * window,
-            )
-        }
-    }
-
     /** ".ogg" etc. from the picked file's name (ExoPlayer sniffs content anyway). */
     private fun extensionOf(uri: Uri): String {
         val ext = displayNameOf(uri)?.substringAfterLast('.', "").orEmpty()
@@ -240,6 +223,4 @@ object SoundLibrary {
     }
 
     private const val MAX_FILE_BYTES = 200L * 1024 * 1024
-    private const val SPLIT_MIN_MS = 90_000L
-    private const val SPLIT_WINDOW_MS = 45_000L
 }

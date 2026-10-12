@@ -49,6 +49,26 @@ data class CustomSound(
         const val TRIM_MIN_DB = -18f
         const val TRIM_MAX_DB = 6f
         const val TRIM_STEP_DB = 1.5f
+
+        private const val SPLIT_MIN_MS = 90_000L
+        private const val SPLIT_WINDOW_MS = 45_000L
+
+        /**
+         * Cut a long file into equal windows of roughly [SPLIT_WINDOW_MS]. Files
+         * shorter than [SPLIT_MIN_MS], or of unknown length, stay whole.
+         */
+        fun split(fileName: String, durationMs: Long?, autoSplit: Boolean): List<CustomSegment> {
+            if (!autoSplit || durationMs == null || durationMs < SPLIT_MIN_MS) return listOf(CustomSegment(fileName))
+            val count = (durationMs / SPLIT_WINDOW_MS).toInt().coerceAtLeast(2)
+            val window = durationMs / count
+            return (0 until count).map { i ->
+                CustomSegment(
+                    file = fileName,
+                    startMs = i * window,
+                    endMs = if (i == count - 1) null else (i + 1) * window,
+                )
+            }
+        }
     }
 }
 
