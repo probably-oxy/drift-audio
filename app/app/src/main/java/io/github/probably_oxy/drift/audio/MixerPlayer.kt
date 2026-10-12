@@ -34,13 +34,22 @@ class MixerPlayer(
         )
         .build()
 
-    // A single static item so the notification has something to label.
-    private val mixItem = MediaItemData.Builder(/* uid = */ "drift-mix")
+    /** Second line of the notification, e.g. "3 sounds · timer 42m". Only
+     *  re-publishes on an actual change, so a per-second caller costs nothing. */
+    var subtitle: String = "Ambient mix"
+        set(value) {
+            if (value == field) return
+            field = value
+            invalidateState()
+        }
+
+    // A single item so the notification has something to label.
+    private fun mixItem() = MediaItemData.Builder(/* uid = */ "drift-mix")
         .setMediaItem(MediaItem.Builder().setMediaId("drift-mix").build())
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle("Drift")
-                .setArtist("Ambient mix")
+                .setArtist(subtitle)
                 .build(),
         )
         .build()
@@ -59,7 +68,7 @@ class MixerPlayer(
                 engine.isPlaying,
                 Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
             )
-            .setPlaylist(if (active) listOf(mixItem) else emptyList())
+            .setPlaylist(if (active) listOf(mixItem()) else emptyList())
             .build()
     }
 

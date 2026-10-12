@@ -3,6 +3,7 @@ package io.github.probably_oxy.drift.audio
 import android.content.Context
 import android.os.Bundle
 import android.os.CountDownTimer
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -32,6 +33,7 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private lateinit var engine: PlaybackEngine
+    private lateinit var player: MixerPlayer
     private var sleepTimer: CountDownTimer? = null
 
     private var timerRemainingMs = TIMER_INACTIVE
@@ -45,7 +47,7 @@ class PlaybackService : MediaSessionService() {
         // notification), so it loads the user's imports itself.
         SoundLibrary.init(this)
         engine = PlaybackEngine(this)
-        val player = MixerPlayer(engine)
+        player = MixerPlayer(engine)
         // MixerPlayer's init wired engine.onStateChanged to invalidate its own
         // state. Chain a re-publish of the session extras so UI-facing state the
         // engine changes on its own (notably the mute flag auto-resetting when the
@@ -58,6 +60,16 @@ class PlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(MixerCallback())
             .build()
+        // Notification/lock-screen controls: just play/pause (from MixerPlayer)
+        // plus this Stop. With no prev/next commands, Stop takes that slot.
+        mediaSession?.setCustomLayout(
+            listOf(
+                CommandButton.Builder(CommandButton.ICON_STOP)
+                    .setDisplayName("Stop")
+                    .setSessionCommand(SessionCommand(ACTION_STOP_ALL, Bundle.EMPTY))
+                    .build(),
+            ),
+        )
 
         // Restore the saved output mode (global setting, not part of a preset).
         outputMode = OutputMode.fromName(prefs.getString(PREF_OUTPUT_MODE, null))
@@ -142,6 +154,18 @@ class PlaybackService : MediaSessionService() {
             putBoolean(EXTRA_MUTED, engine.isMuted)
             putString(EXTRA_ACTIVE_LAYERS, PresetStore.DriftJson.encodeToString(engine.activeLayersSnapshot()))
         }
+        player.subtitle = notificationSubtitle()
+    }
+
+    /** "3 sounds · muted · timer 42m". Whole minutes (rounded up), so the
+     *  notification changes once a minute rather than on every timer tick. */
+    private fun notificationSubtitle(): String {
+        val n = engine.activeLayerIds().size
+        return buildList {
+            add(if (n == 1) "1 sound" else "$n sounds")
+            if (engine.isMuted) add("muted")
+            if (timerRemainingMs != TIMER_INACTIVE) add("timer ${(timerRemainingMs + 59_999) / 60_000}m")
+        }.joinToString(" · ")
     }
 
     private fun setOutputMode(mode: OutputMode) {
@@ -169,6 +193,7 @@ class PlaybackService : MediaSessionService() {
                     .add(SessionCommand(ACTION_SET_MUTE, Bundle.EMPTY))
                     .add(SessionCommand(ACTION_SET_VARIANT, Bundle.EMPTY))
                     .add(SessionCommand(ACTION_SET_TRIM, Bundle.EMPTY))
+                    .add(SessionCommand(ACTION_STOP_ALL, Bundle.EMPTY))
                     .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(sessionCommands)
@@ -247,6 +272,11 @@ class PlaybackService : MediaSessionService() {
                     setOutputMode(OutputMode.fromName(args.getString(KEY_OUTPUT_MODE)))
                     return success()
                 }
+                ACTION_STOP_ALL -> {
+                    // Same path as the in-app STOP (MixerPlayer.handleStop).
+                    player.stop()
+                    return success()
+                }
                 ACTION_SET_MUTE -> {
                     // engine.setMuted fires onStateChanged → publishExtras, so the
                     // new mute flag reaches the UI without an explicit publish here.
@@ -271,6 +301,7 @@ class PlaybackService : MediaSessionService() {
         const val ACTION_SET_MUTE = "io.github.probably_oxy.drift.SET_MUTE"
         const val ACTION_SET_VARIANT = "io.github.probably_oxy.drift.SET_VARIANT"
         const val ACTION_SET_TRIM = "io.github.probably_oxy.drift.SET_TRIM"
+        const val ACTION_STOP_ALL = "io.github.probably_oxy.drift.STOP_ALL"
         const val KEY_SOUND_ID = "soundId"
         const val KEY_GAIN = "gain"
         const val KEY_VOLUME = "volume"
