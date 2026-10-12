@@ -141,7 +141,7 @@ class PlaybackEngine(private val context: Context) {
         onStateChanged?.invoke()
     }
 
-    /** Live loudness trim for a user import (linear gain, pre-limiter). */
+    /** Live loudness trim (linear gain incl. the catalogue's own correction, pre-limiter). */
     fun setGainTrim(id: String, gainLinear: Float) {
         val layer = layers[id] ?: return
         layer.source.gainTrim = gainLinear

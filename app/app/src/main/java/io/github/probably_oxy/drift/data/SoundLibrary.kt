@@ -37,17 +37,32 @@ object SoundLibrary {
     /** The user's imports, in import order. */
     val custom: StateFlow<List<CustomSound>> = _custom.asStateFlow()
 
+    private val _trims = MutableStateFlow<Map<String, Float>>(emptyMap())
+
+    /** The user's trim (dB) for built-in sounds, by id; absent = 0 dB. Imports
+     *  keep theirs on [CustomSound.trimDb] instead. */
+    val trims: StateFlow<Map<String, Float>> = _trims.asStateFlow()
+
     private val rootDir: File get() = File(appContext.filesDir, "custom")
     private val indexFile: File get() = File(appContext.filesDir, "custom_sounds.json")
+    private val trimsFile: File get() = File(appContext.filesDir, "sound_trims.json")
 
     /** Idempotent; call from every entry point (Activity and service). */
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
         _custom.value = load()
+        _trims.value = loadTrims()
     }
 
-    fun byId(id: String): Sound? = Catalogue.byId(id) ?: customById(id)?.toSound()
+    /** A built-in's [Sound.gainTrim] already includes the user's trim on top of
+     *  the catalogue's own loudness correction, so playback needs no extra step. */
+    fun byId(id: String): Sound? =
+        Catalogue.byId(id)?.let { it.copy(gainTrim = it.gainTrim * dbToGain(trimDbOf(id))) }
+            ?: customById(id)?.toSound()
+
+    /** The user's trim for any sound, built-in or imported; 0 = as shipped. */
+    fun trimDbOf(id: String): Float = customById(id)?.trimDb ?: _trims.value[id] ?: 0f
 
     fun customById(id: String): CustomSound? = _custom.value.find { it.id == id }
 
@@ -58,8 +73,16 @@ object SoundLibrary {
     fun rename(id: String, name: String) =
         update(id) { it.copy(name = name.trim().ifBlank { it.name }) }
 
-    fun setTrim(id: String, trimDb: Float) =
-        update(id) { it.copy(trimDb = trimDb.coerceIn(CustomSound.TRIM_MIN_DB, CustomSound.TRIM_MAX_DB)) }
+    fun setTrim(id: String, trimDb: Float) {
+        val db = trimDb.coerceIn(CustomSound.TRIM_MIN_DB, CustomSound.TRIM_MAX_DB)
+        when {
+            customById(id) != null -> update(id) { it.copy(trimDb = db) }
+            Catalogue.byId(id) != null -> {
+                _trims.value = if (db == 0f) _trims.value - id else _trims.value + (id to db)
+                runCatching { trimsFile.writeText(PresetStore.DriftJson.encodeToString(_trims.value)) }
+            }
+        }
+    }
 
     fun delete(id: String) {
         val sound = customById(id) ?: return
@@ -202,6 +225,14 @@ object SoundLibrary {
         }
         return alive
     }
+
+    private fun loadTrims(): Map<String, Float> =
+        if (trimsFile.exists()) {
+            runCatching { PresetStore.DriftJson.decodeFromString<Map<String, Float>>(trimsFile.readText()) }
+                .getOrDefault(emptyMap())
+        } else {
+            emptyMap()
+        }
 
     private fun save() {
         val snapshot = _custom.value

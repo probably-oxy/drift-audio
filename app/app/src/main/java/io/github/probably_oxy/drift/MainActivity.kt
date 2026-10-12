@@ -287,6 +287,7 @@ fun MixerScreen(
     // User imports (MY SOUNDS). Picked files wait in pendingImport while the
     // name/auto-split dialog is open; the copy itself runs in SoundLibrary.
     val customSounds by SoundLibrary.custom.collectAsState()
+    val builtInTrims by SoundLibrary.trims.collectAsState()
     val uriHandler = LocalUriHandler.current
     var pendingImport by remember { mutableStateOf<List<Uri>?>(null) }
     var importing by remember { mutableStateOf(false) }
@@ -546,13 +547,14 @@ fun MixerScreen(
     }
 
     /** Persist the new trim, then push it to the live layer (if playing). */
-    fun setTrim(sound: CustomSound, trimDb: Float) {
-        SoundLibrary.setTrim(sound.id, trimDb)
-        val gain = SoundLibrary.customById(sound.id)?.gainLinear ?: return
+    fun setTrim(id: String, trimDb: Float) {
+        SoundLibrary.setTrim(id, trimDb)
+        // Full gain = catalogue correction × user trim (see SoundLibrary.byId).
+        val gain = SoundLibrary.byId(id)?.gainTrim ?: return
         controller?.sendCustomCommand(
             SessionCommand(PlaybackService.ACTION_SET_TRIM, Bundle.EMPTY),
             Bundle().apply {
-                putString(PlaybackService.KEY_SOUND_ID, sound.id)
+                putString(PlaybackService.KEY_SOUND_ID, id)
                 putFloat(PlaybackService.KEY_GAIN, gain)
             },
         )
@@ -575,7 +577,8 @@ fun MixerScreen(
     // muted layers stay "playing" here (highlighted, spinner running) — just silent.
     val playingNow = isPlaying && activeIds.isNotEmpty()
 
-    /** One mixer card. [custom] non-null = a user import (adds trim + suggest to its readout). */
+    /** One mixer card. Every playable sound gets a trim row on its readout;
+     *  [custom] non-null = a user import (also adds SUGGEST). */
     @Composable
     fun SoundCard(sound: Sound, channel: Int, entranceDelay: Int, custom: CustomSound? = null) {
         val playable = AudioFiles.isPlayable(sound)
@@ -596,8 +599,8 @@ fun MixerScreen(
             modifier = Modifier
                 .entrance(entranceDelay)
                 .alpha(if (playable) 1f else 0.5f),
-            trimDb = custom?.trimDb,
-            onTrim = { db -> custom?.let { setTrim(it, db) } },
+            trimDb = if (playable) custom?.trimDb ?: builtInTrims[sound.id] ?: 0f else null,
+            onTrim = { db -> setTrim(sound.id, db) },
             onSuggest = custom?.let { c -> { suggest(c.name) } },
         )
     }
@@ -693,7 +696,7 @@ fun MixerScreen(
           onClose = { menuOpen = false },
           customSounds = customSounds,
           onImport = { startImport() },
-          onTrim = { sound, db -> setTrim(sound, db) },
+          onTrim = { sound, db -> setTrim(sound.id, db) },
           onRename = { renaming = it },
           onDelete = { deleting = it },
           onSuggest = { suggest() },

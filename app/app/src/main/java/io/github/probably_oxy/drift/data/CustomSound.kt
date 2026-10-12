@@ -29,7 +29,7 @@ data class CustomSound(
     /** Loudness trim in dB, adjustable any time after import. */
     val trimDb: Float = 0f,
 ) {
-    val gainLinear: Float get() = 10f.pow(trimDb / 20f)
+    val gainLinear: Float get() = dbToGain(trimDb)
 
     fun toSound(): Sound = Sound(
         id = id,
@@ -51,3 +51,6 @@ data class CustomSound(
         const val TRIM_STEP_DB = 1.5f
     }
 }
+
+/** Decibels to a linear gain multiplier: 0 dB = 1.0, +6 dB ≈ 2.0, −6 dB ≈ 0.5. */
+fun dbToGain(db: Float): Float = 10f.pow(db / 20f)

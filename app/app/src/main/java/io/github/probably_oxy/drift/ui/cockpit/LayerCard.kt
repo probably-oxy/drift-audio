@@ -77,7 +77,7 @@ fun LayerCard(
     onVariant: (String) -> Unit,
     onInfo: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Non-null only for user imports: shows the trim stepper on the readout. */
+    /** Non-null for playable sounds: shows the trim stepper on the readout. */
     trimDb: Float? = null,
     onTrim: (Float) -> Unit = {},
     /** Non-null only for user imports: "suggest this for the catalogue" link. */
@@ -241,7 +241,7 @@ private fun CardReadout(
     val colors = LocalDriftColors.current
     val ch = channel.toString().padStart(2, '0')
     val pct = (volume.coerceIn(0f, 1f) * 100).toInt()
-    // Imports drop the blank spacer line so the trim row fits the fixed card height.
+    // Cards with a trim row drop the blank spacer line so it fits the fixed card height.
     val body =
         "SRC   ${sourceOf(sound)}\n" +
             "CH $ch · ${sound.type.name} · VOL $pct%\n" +
@@ -291,10 +291,10 @@ private fun CardReadout(
 }
 
 /**
- * Loudness trim for a user import: − / value / + in [CustomSound.TRIM_STEP_DB]
- * steps. Stored as metadata and applied at playback, so it can be changed any
- * time without re-importing. Each button consumes its own tap, so the rest of
- * the readout still flips the card back.
+ * Per-sound loudness trim: − / value / + in [CustomSound.TRIM_STEP_DB] steps;
+ * tapping the value resets it to 0 dB. Stored as metadata and applied at
+ * playback, so it can be changed any time. Each button consumes its own tap, so
+ * the rest of the readout still flips the card back.
  */
 @Composable
 fun TrimRow(
@@ -320,7 +320,9 @@ fun TrimRow(
             fontFamily = JetBrainsMono,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
-            modifier = Modifier.width(62.dp),
+            modifier = Modifier
+                .width(62.dp)
+                .clickable(enabled = enabled && trimDb != 0f) { onTrim(0f) },
         )
         StepButton("+", enabled && trimDb < CustomSound.TRIM_MAX_DB) { onTrim(trimDb + CustomSound.TRIM_STEP_DB) }
         if (onSuggest != null) {
