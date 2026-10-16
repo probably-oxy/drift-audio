@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 
 /**
@@ -141,8 +143,8 @@ object SoundLibrary {
                 val dest = File(dir, fileName)
                 val input = appContext.contentResolver.openInputStream(uri)
                     ?: return fail(dir, "Couldn't open file ${i + 1}")
-                val bytes = input.use { inp -> dest.outputStream().use { out -> inp.copyTo(out) } }
-                if (bytes > MAX_FILE_BYTES) return fail(dir, "File ${i + 1} is over 200 MB")
+                input.use { inp -> dest.outputStream().use { out -> copyCapped(inp, out, MAX_FILE_BYTES) } }
+                    ?: return fail(dir, "File ${i + 1} is over 200 MB")
                 val probe = probe(dest) ?: return fail(dir, "File ${i + 1} isn't a playable audio file")
                 segments += CustomSound.split(fileName, probe.durationMs, autoSplit)
             }
@@ -223,4 +225,21 @@ object SoundLibrary {
     }
 
     private const val MAX_FILE_BYTES = 200L * 1024 * 1024
+}
+
+/**
+ * Copies [input] to [output] and returns the byte count, or null as soon as it
+ * passes [limit] — so an oversized pick is abandoned early instead of being
+ * copied in full first and only then rejected.
+ */
+internal fun copyCapped(input: InputStream, output: OutputStream, limit: Long): Long? {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var total = 0L
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) return total
+        total += read
+        if (total > limit) return null
+        output.write(buffer, 0, read)
+    }
 }
