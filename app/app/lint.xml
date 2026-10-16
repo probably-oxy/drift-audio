@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Media3 marks much of its API @UnstableApi (custom audio processors,
+         SimpleBasePlayer, renderer factories). Drift relies on those on purpose,
+         so opt in once for the whole module instead of annotating every use. -->
+    <issue id="UnsafeOptInUsageError">
+        <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+    </issue>
+</lint>

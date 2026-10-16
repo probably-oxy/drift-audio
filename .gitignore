@@ -40,26 +40,20 @@ drift_sounds.xlsx
 # Local Continue AI configuration
 .continueignore
 
-# Continue AI — commit rules, ignore local caches/indexes
+# Continue AI (Qwen) config and rules — local only, like CLAUDE.md
 .continue/
-!.continue/rules/
-!.continue/rules/**
 
-# Android / Gradle (for the native rebuild)
+# Android / Gradle
 .gradle/
 build/
 local.properties
 *.apk
 *.aab
-.idea/
 .cxx/
-
-# OS noise
-.DS_Store
-Thumbs.db
 
 # AI assistant context (local only — not shipped to the repo)
 CLAUDE.md
 CLAUDE_CODE_BRIEF.md
 HANDOFF.md
+HANDOFF_ARCHIVE.md
 .github/copilot-instructions.md

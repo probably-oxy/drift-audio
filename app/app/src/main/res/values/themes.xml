@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- The cockpit UI is permanently dark (not day/night-aware), so the base
-         theme is the dark Material variant, not Light — this also keeps
-         system dialogs (e.g. the notification permission prompt) and default
-         system-bar icon contrast consistent with the app's actual look. -->
+    <!-- The dark Material variant, not Light: every theme but DAYLIGHT is dark,
+         and this is what shows before Compose draws (the launch window) and in
+         system dialogs such as the notification permission prompt. Compose
+         itself picks its colours from the chosen in-app theme. -->
     <style name="Theme.Drift" parent="android:Theme.Material.NoActionBar" />
 </resources>

@@ -127,11 +127,11 @@ import io.github.probably_oxy.drift.ui.theme.ThemePreset
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // The cockpit is permanently dark regardless of system day/night, so the
-        // bars need light icons on a fully transparent scrim unconditionally —
-        // enableEdgeToEdge()'s bare/"auto" form picks scrim darkness off the
-        // system theme, which (paired with our theme's Light parent) was
-        // rendering an opaque-looking bar over the app's black background.
+        // Fully transparent bars with light icons to start with — enableEdgeToEdge()'s
+        // bare/"auto" form picks scrim darkness off the system theme, which was
+        // rendering an opaque-looking bar over the app's black background. The
+        // icon colour then follows the active palette (see the SideEffect below),
+        // since the light DAYLIGHT theme needs dark icons.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
