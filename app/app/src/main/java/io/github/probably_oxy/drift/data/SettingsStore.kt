@@ -2,6 +2,7 @@ package io.github.probably_oxy.drift.data
 
 import android.content.Context
 import androidx.compose.runtime.Immutable
+import androidx.core.content.edit
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -41,7 +42,7 @@ class SettingsStore(context: Context) {
 
     fun updateTheme(name: String) {
         themeName = name
-        prefs.edit().putString(KEY_THEME, name).apply()
+        prefs.edit { putString(KEY_THEME, name) }
     }
 
     /** Automatic light/dark switching; see [ThemeAuto]. */
@@ -54,20 +55,20 @@ class SettingsStore(context: Context) {
 
     fun updateThemeAuto(mode: ThemeAuto) {
         themeAuto = mode
-        prefs.edit().putString(KEY_THEME_AUTO, mode.name).apply()
+        prefs.edit { putString(KEY_THEME_AUTO, mode.name) }
     }
 
     fun updateDayStart(minuteOfDay: Int) {
         dayStartMin = minuteOfDay
-        prefs.edit().putInt(KEY_DAY_START, minuteOfDay).apply()
+        prefs.edit { putInt(KEY_DAY_START, minuteOfDay) }
     }
 
     fun updateNightStart(minuteOfDay: Int) {
         nightStartMin = minuteOfDay
-        prefs.edit().putInt(KEY_NIGHT_START, minuteOfDay).apply()
+        prefs.edit { putInt(KEY_NIGHT_START, minuteOfDay) }
     }
 
-    private fun put(key: String, value: Boolean) = prefs.edit().putBoolean(key, value).apply()
+    private fun put(key: String, value: Boolean) = prefs.edit { putBoolean(key, value) }
 
     private companion object {
         const val PREFS = "drift_settings"

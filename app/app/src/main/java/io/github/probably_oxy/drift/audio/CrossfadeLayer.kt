@@ -1,10 +1,10 @@
 package io.github.probably_oxy.drift.audio
 
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -106,7 +106,7 @@ class CrossfadeLayer(
                 val segment = source.segments[s]
                 if (segment.startMs == 0L && segment.endMs == null) return
                 clipFallbackDone[s] = true
-                items[s] = MediaItem.fromUri(Uri.parse(segment.uri))
+                items[s] = MediaItem.fromUri(segment.uri.toUri())
                 loadSegment(s, player.volume)
             }
 
@@ -402,7 +402,7 @@ class CrossfadeLayer(
     }
 
     private fun toMediaItem(segment: Segment): MediaItem {
-        val builder = MediaItem.Builder().setUri(Uri.parse(segment.uri))
+        val builder = MediaItem.Builder().setUri(segment.uri.toUri())
         if (segment.startMs > 0L || segment.endMs != null) {
             builder.setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder()

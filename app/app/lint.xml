@@ -6,4 +6,12 @@
     <issue id="UnsafeOptInUsageError">
         <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
     </issue>
+
+    <!-- With minSdk 26 the adaptive icon (mipmap-anydpi) is what launchers show,
+         so lint calls the per-density PNGs redundant. Keep them anyway: F-Droid
+         takes the store-listing icon from the APK's PNGs, and fastlane/ has no
+         icon.png of its own. Their square full-bleed shape is the intended look. -->
+    <issue id="IconXmlAndPng" severity="ignore" />
+    <issue id="IconDuplicates" severity="ignore" />
+    <issue id="IconLauncherShape" severity="ignore" />
 </lint>

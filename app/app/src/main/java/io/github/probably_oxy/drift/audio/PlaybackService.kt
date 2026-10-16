@@ -3,6 +3,7 @@ package io.github.probably_oxy.drift.audio
 import android.content.Context
 import android.os.Bundle
 import android.os.CountDownTimer
+import androidx.core.content.edit
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -171,7 +172,7 @@ class PlaybackService : MediaSessionService() {
 
     private fun setOutputMode(mode: OutputMode) {
         outputMode = mode
-        prefs.edit().putString(PREF_OUTPUT_MODE, mode.name).apply()
+        prefs.edit { putString(PREF_OUTPUT_MODE, mode.name) }
         engine.setOutputMode(mode)
         publishExtras()
     }

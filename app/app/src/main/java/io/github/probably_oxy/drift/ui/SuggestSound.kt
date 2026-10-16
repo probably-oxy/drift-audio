@@ -1,6 +1,6 @@
 package io.github.probably_oxy.drift.ui
 
-import android.net.Uri
+import androidx.core.net.toUri
 
 /**
  * Builds the link to the "Suggest a sound" GitHub issue form
@@ -12,7 +12,7 @@ object SuggestSound {
     private const val NEW_ISSUE = "https://github.com/probably-oxy/drift-audio/issues/new"
 
     fun url(soundName: String? = null): String {
-        val builder = Uri.parse(NEW_ISSUE).buildUpon()
+        val builder = NEW_ISSUE.toUri().buildUpon()
             .appendQueryParameter("template", "sound-suggestion.yml")
         if (!soundName.isNullOrBlank()) {
             builder.appendQueryParameter("title", "[Sound] $soundName")
