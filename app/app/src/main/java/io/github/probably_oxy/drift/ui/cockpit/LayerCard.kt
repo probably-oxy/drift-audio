@@ -15,12 +15,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,11 +34,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,8 +58,9 @@ import java.util.Locale
 import kotlin.math.floor
 
 /**
- * Telemetry layer card (Phase 4c front + 4d info readout). Constant ~138dp height
- * across off / active / info — the shell never resizes.
+ * Telemetry layer card (Phase 4c front + 4d info readout). Constant 138dp height
+ * (more under an enlarged system font) across off / active / info — the shell
+ * never resizes.
  *
  * Controlled: the parent owns which card (if any) shows its readout. [showInfo]
  * drives the front↔readout swap; [onInfo] is the toggle (the (i) opens it; tapping
@@ -111,10 +117,13 @@ fun LayerCard(
         label = "readoutReveal",
     )
 
+    // Fixed height, but grown with the system font scale so the readout's text
+    // and trim row still fit when the user has enlarged fonts (issue #14).
+    val fontGrowth = (LocalDensity.current.fontScale - 1f).coerceAtLeast(0f)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(138.dp)
+            .height(CARD_HEIGHT + CARD_FONT_GROWTH * fontGrowth)
             .then(if (active) Modifier.glow(glowColor) else Modifier)
             .clip(shape)
             .background(if (active) colors.cardBgOn else colors.cardBg)
@@ -257,8 +266,8 @@ private fun CardReadout(
                 enabled = enabled,
                 onClick = onBack,
             )
-            .padding(horizontal = 18.dp, vertical = 13.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -274,13 +283,18 @@ private fun CardReadout(
             )
             BackButton(onClick = onBack)
         }
-        Row {
+        // The text takes whatever height is left, so the trim row below always
+        // stays on the card; text that doesn't fit is cut with "…" rather than
+        // pushing the controls off the bottom edge.
+        Row(Modifier.weight(1f).clipToBounds()) {
             Text(
                 text = typed.text,
                 color = colors.textDim,
                 fontFamily = JetBrainsMono,
                 fontSize = 11.sp,
-                lineHeight = 16.5.sp,
+                lineHeight = 15.5.sp,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
             Cursor(show = !typed.done)
         }
@@ -305,10 +319,11 @@ fun TrimRow(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDriftColors.current
-    // Fixed-height row; every bordered box fills it with its label centred, so
-    // all box edges line up exactly regardless of each label's font size.
+    // Equal-height row (at least TRIM_ROW_HEIGHT, taller under a large font
+    // scale); every bordered box fills it with its label centred, so all box
+    // edges line up exactly regardless of each label's font size.
     Row(
-        modifier = modifier.fillMaxWidth().height(TRIM_ROW_HEIGHT),
+        modifier = modifier.fillMaxWidth().heightIn(min = TRIM_ROW_HEIGHT).height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("TRIM", color = colors.greenFaint, fontFamily = JetBrainsMono, fontSize = 9.5.sp, letterSpacing = 1.5.sp)
@@ -343,6 +358,11 @@ fun TrimRow(
 }
 
 private val TRIM_ROW_HEIGHT = 22.dp
+
+private val CARD_HEIGHT = 138.dp
+
+/** Extra card height per +100% font scale (≈ the readout's font-sized content). */
+private val CARD_FONT_GROWTH = 90.dp
 
 /** At a limit the step button drops its border AND dims — never colour alone. */
 @Composable
