@@ -163,10 +163,36 @@ enum class ThemePreset(val label: String, val swatch: Color, val colors: DriftCo
 }
 
 /**
+ * Whether automatic switching currently says "day" (null when [auto] is OFF).
+ * [nowMin], [dayStartMin] and [nightStartMin] are minutes of the day; a day
+ * window may wrap past midnight.
+ */
+fun isDaytime(
+    auto: ThemeAuto,
+    systemDark: Boolean,
+    nowMin: Int,
+    dayStartMin: Int,
+    nightStartMin: Int,
+): Boolean? = when (auto) {
+    ThemeAuto.OFF -> null
+    ThemeAuto.SYSTEM -> !systemDark
+    ThemeAuto.SCHEDULE ->
+        if (dayStartMin <= nightStartMin) nowMin in dayStartMin until nightStartMin
+        else nowMin >= dayStartMin || nowMin < nightStartMin
+}
+
+/** SCHEDULE mode: minutes from [nowMin] to the next day or night start (1–1440). */
+fun minutesUntilNextSwitch(nowMin: Int, dayStartMin: Int, nightStartMin: Int): Int =
+    listOf(dayStartMin, nightStartMin).minOf { start ->
+        val ahead = ((start - nowMin) % 1440 + 1440) % 1440
+        if (ahead == 0) 1440 else ahead
+    }
+
+/**
  * The theme actually shown. With automatic switching on, daytime gives DAYLIGHT
  * and night gives the user's picked theme ([chosen]) — or PHOSPHOR, should the
- * pick itself be the light one. [nowMin], [dayStartMin] and [nightStartMin] are
- * minutes of the day; a day window may wrap past midnight.
+ * pick itself be the light one. [flipped]: the user overrode the current phase
+ * (a dark theme by day, DAYLIGHT by night) until the next switch.
  */
 fun resolveTheme(
     chosen: ThemePreset,
@@ -175,16 +201,11 @@ fun resolveTheme(
     nowMin: Int,
     dayStartMin: Int,
     nightStartMin: Int,
+    flipped: Boolean = false,
 ): ThemePreset {
-    val isDay = when (auto) {
-        ThemeAuto.OFF -> return chosen
-        ThemeAuto.SYSTEM -> !systemDark
-        ThemeAuto.SCHEDULE ->
-            if (dayStartMin <= nightStartMin) nowMin in dayStartMin until nightStartMin
-            else nowMin >= dayStartMin || nowMin < nightStartMin
-    }
+    val isDay = isDaytime(auto, systemDark, nowMin, dayStartMin, nightStartMin) ?: return chosen
     return when {
-        isDay -> ThemePreset.DAYLIGHT
+        isDay != flipped -> ThemePreset.DAYLIGHT
         chosen.colors.isLight -> ThemePreset.PHOSPHOR
         else -> chosen
     }

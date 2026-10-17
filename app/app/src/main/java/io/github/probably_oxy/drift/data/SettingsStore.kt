@@ -53,6 +53,28 @@ class SettingsStore(context: Context) {
     var dayStartMin by mutableStateOf(prefs.getInt(KEY_DAY_START, 7 * 60)); private set
     var nightStartMin by mutableStateOf(prefs.getInt(KEY_NIGHT_START, 19 * 60)); private set
 
+    /**
+     * A manual override of AUTO: the phase it was set in (true = day) and when it
+     * expires (epoch ms) — the next switch, so it can never outlive its phase.
+     * Null when there's none.
+     */
+    var themeFlipIsDay by mutableStateOf(
+        if (prefs.contains(KEY_FLIP_IS_DAY)) prefs.getBoolean(KEY_FLIP_IS_DAY, false) else null,
+    ); private set
+    var themeFlipUntil by mutableStateOf(prefs.getLong(KEY_FLIP_UNTIL, 0L)); private set
+
+    fun setThemeFlip(isDay: Boolean, untilMs: Long) {
+        themeFlipIsDay = isDay
+        themeFlipUntil = untilMs
+        prefs.edit { putBoolean(KEY_FLIP_IS_DAY, isDay); putLong(KEY_FLIP_UNTIL, untilMs) }
+    }
+
+    fun clearThemeFlip() {
+        if (themeFlipIsDay == null) return
+        themeFlipIsDay = null
+        prefs.edit { remove(KEY_FLIP_IS_DAY); remove(KEY_FLIP_UNTIL) }
+    }
+
     fun updateThemeAuto(mode: ThemeAuto) {
         themeAuto = mode
         prefs.edit { putString(KEY_THEME_AUTO, mode.name) }
@@ -81,6 +103,8 @@ class SettingsStore(context: Context) {
         const val KEY_THEME_AUTO = "theme_auto"
         const val KEY_DAY_START = "theme_day_start_min"
         const val KEY_NIGHT_START = "theme_night_start_min"
+        const val KEY_FLIP_IS_DAY = "theme_flip_is_day"
+        const val KEY_FLIP_UNTIL = "theme_flip_until"
         const val DEFAULT_THEME = "PHOSPHOR"
     }
 }

@@ -39,6 +39,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.probably_oxy.drift.data.ThemeAuto
+import io.github.probably_oxy.drift.ui.theme.isDaytime
+import io.github.probably_oxy.drift.ui.theme.minutesUntilNextSwitch
 import io.github.probably_oxy.drift.ui.theme.resolveTheme
 import kotlinx.coroutines.delay
 import java.util.Calendar
@@ -126,14 +128,36 @@ class MainActivity : ComponentActivity() {
                 enabled = settings.themeAuto == ThemeAuto.SCHEDULE,
                 lifecycle = lifecycle,
             )
-            val preset = resolveTheme(
-                chosen = chosen,
+            val systemDark = isSystemInDarkTheme()
+            val isDay = isDaytime(
                 auto = settings.themeAuto,
-                systemDark = isSystemInDarkTheme(),
+                systemDark = systemDark,
                 nowMin = nowMin,
                 dayStartMin = settings.dayStartMin,
                 nightStartMin = settings.nightStartMin,
             )
+            // A tapped theme overrides AUTO until the next switch. Drop the
+            // override once the phase it was set in is over, so it can't revive.
+            LaunchedEffect(isDay) {
+                if (settings.themeFlipIsDay != null && settings.themeFlipIsDay != isDay) settings.clearThemeFlip()
+            }
+            val flipped = isDay != null && settings.themeFlipIsDay == isDay &&
+                System.currentTimeMillis() < settings.themeFlipUntil
+            val preset = resolveTheme(
+                chosen = chosen,
+                auto = settings.themeAuto,
+                systemDark = systemDark,
+                nowMin = nowMin,
+                dayStartMin = settings.dayStartMin,
+                nightStartMin = settings.nightStartMin,
+                flipped = flipped,
+            )
+            val pickTheme: (ThemePreset) -> Unit = { picked ->
+                // Under AUTO a dark pick is also the night theme; DAYLIGHT never is.
+                if (isDay == null || !picked.colors.isLight) settings.updateTheme(picked.name)
+                if (isDay == null || picked.colors.isLight == isDay) settings.clearThemeFlip()
+                else settings.setThemeFlip(isDay, flipUntil(settings))
+            }
             // Bar icons follow the palette: enableEdgeToEdge above fixes them light
             // (for the dark themes), which would vanish against DAYLIGHT's paper bg.
             val isLight = preset.colors.isLight
@@ -160,6 +184,8 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding),
                             settings = settings,
                             currentPreset = chosen,
+                            shownPreset = preset,
+                            onPickTheme = pickTheme,
                         )
                     }
                 }
@@ -182,6 +208,16 @@ class MainActivity : ComponentActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideStatusBar()
     }
+}
+
+/** When a theme override expires: the next scheduled switch, or for SYSTEM
+ *  (whose switch can't be predicted) a day at most — it's cleared sooner, as
+ *  soon as the system mode changes while the app is open. */
+private fun flipUntil(settings: SettingsStore): Long {
+    val now = System.currentTimeMillis()
+    if (settings.themeAuto != ThemeAuto.SCHEDULE) return now + 24 * 60 * 60_000L
+    val minutes = minutesUntilNextSwitch(minuteOfDayNow(), settings.dayStartMin, settings.nightStartMin)
+    return now - now % 60_000L + minutes * 60_000L
 }
 
 /**
@@ -234,6 +270,8 @@ fun MixerScreen(
     modifier: Modifier = Modifier,
     settings: SettingsStore,
     currentPreset: ThemePreset,
+    shownPreset: ThemePreset,
+    onPickTheme: (ThemePreset) -> Unit,
 ) {
     val context = LocalContext.current
     val sounds = remember { Catalogue.sounds }
@@ -668,8 +706,9 @@ fun MixerScreen(
       MenuDrawer(
           open = menuOpen,
           currentPreset = currentPreset,
+          shownPreset = shownPreset,
           settings = settings,
-          onSelectPreset = { settings.updateTheme(it.name) },
+          onSelectPreset = onPickTheme,
           onClose = { menuOpen = false },
           customSounds = customSounds,
           onImport = { startImport() },

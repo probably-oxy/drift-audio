@@ -54,7 +54,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import io.github.probably_oxy.drift.ui.AboutContent
 import io.github.probably_oxy.drift.ui.CreditsContent
@@ -76,6 +75,7 @@ private enum class MenuView(val title: String) {
 fun MenuDrawer(
     open: Boolean,
     currentPreset: ThemePreset,
+    shownPreset: ThemePreset,
     settings: SettingsStore,
     onSelectPreset: (ThemePreset) -> Unit,
     onClose: () -> Unit,
@@ -133,6 +133,7 @@ fun MenuDrawer(
                     when (view) {
                         MenuView.ROOT -> RootMenu(
                             currentPreset = currentPreset,
+                            shownPreset = shownPreset,
                             settings = settings,
                             onSelectPreset = onSelectPreset,
                             onOpen = { view = it },
@@ -178,6 +179,7 @@ private fun DrawerHeader(view: MenuView, onBack: () -> Unit, onClose: () -> Unit
 @Composable
 private fun RootMenu(
     currentPreset: ThemePreset,
+    shownPreset: ThemePreset,
     settings: SettingsStore,
     onSelectPreset: (ThemePreset) -> Unit,
     onOpen: (MenuView) -> Unit,
@@ -190,12 +192,11 @@ private fun RootMenu(
         ThemePreset.entries.toList().chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { preset ->
-                    // With AUTO on, DAYLIGHT is chosen by the clock/system, so its
-                    // chip is inert and the others pick the night theme.
+                    // With AUTO on, the highlight follows what's on screen; a tap
+                    // overrides AUTO until its next switch (see pickTheme).
                     ThemeChip(
                         preset = preset,
-                        selected = preset == currentPreset,
-                        enabled = !(auto && preset.colors.isLight),
+                        selected = preset == shownPreset,
                         onClick = { onSelectPreset(preset) },
                         modifier = Modifier.weight(1f),
                     )
@@ -206,7 +207,7 @@ private fun RootMenu(
     }
     Spacer(Modifier.height(10.dp))
     Text(
-        if (auto) "▸ AUTO uses DAYLIGHT by day; tap a theme for night." else "▸ recolors the entire interface.",
+        if (auto) "▸ AUTO: tap a theme to override until the next switch." else "▸ recolors the entire interface.",
         color = colors.greenFaint,
         fontFamily = JetBrainsMono,
         fontSize = 10.sp,
@@ -243,16 +244,14 @@ private fun ThemeChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
 ) {
     val colors = LocalDriftColors.current
     Row(
         modifier = modifier
-            .alpha(if (enabled) 1f else 0.4f)
             .clip(RoundedCornerShape(7.dp))
             .background(if (selected) colors.greenBright.copy(alpha = 0.08f) else Color.Transparent)
             .border(1.dp, if (selected) colors.greenBright else colors.cardLine, RoundedCornerShape(7.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
