@@ -1,0 +1,6 @@
+Louder or quieter sounds, a cleaner notification, and fixes.
+
+* New: loudness trim for every built-in sound (tap ⓘ on a card), so quiet sounds like Mars Wind can be turned up
+* Leaner media notification: Drift logo, play/pause, Stop and a live summary
+* With automatic light/dark on, tapping a theme now switches to it until the next day/night change
+* Fixed: trim controls cut off with larger font sizes
