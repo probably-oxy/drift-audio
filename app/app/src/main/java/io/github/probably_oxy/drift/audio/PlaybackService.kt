@@ -1,9 +1,14 @@
 package io.github.probably_oxy.drift.audio
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.os.Bundle
 import android.os.CountDownTimer
+import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.graphics.createBitmap
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -12,6 +17,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import io.github.probably_oxy.drift.R
 import io.github.probably_oxy.drift.data.SoundLibrary
 import io.github.probably_oxy.drift.data.OutputMode
 import io.github.probably_oxy.drift.data.Preset
@@ -49,7 +55,7 @@ class PlaybackService : MediaSessionService() {
         // notification), so it loads the user's imports itself.
         SoundLibrary.init(this)
         engine = PlaybackEngine(this)
-        player = MixerPlayer(engine)
+        player = MixerPlayer(engine, logoArtwork())
         // MixerPlayer's init wired engine.onStateChanged to invalidate its own
         // state. Chain a re-publish of the session extras so UI-facing state the
         // engine changes on its own (notably the mute flag auto-resetting when the
@@ -293,7 +299,25 @@ class PlaybackService : MediaSessionService() {
             Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }
 
+    /** The launcher icon (logo on its dark background) as PNG bytes, for the
+     *  notification artwork. Null if the drawable can't be loaded. */
+    private fun logoArtwork(): ByteArray? {
+        val logo = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground) ?: return null
+        val size = ARTWORK_SIZE_PX
+        val bitmap = createBitmap(size, size)
+        Canvas(bitmap).apply {
+            drawColor(Color.rgb(0x07, 0x0C, 0x07)) // ic_launcher_background
+            logo.setBounds(0, 0, size, size)
+            logo.draw(this)
+        }
+        return java.io.ByteArrayOutputStream().use {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            it.toByteArray()
+        }
+    }
+
     companion object {
+        private const val ARTWORK_SIZE_PX = 432 // the logo PNG's native size
         const val ACTION_TOGGLE_LAYER = "io.github.probably_oxy.drift.TOGGLE_LAYER"
         const val ACTION_SET_VOLUME = "io.github.probably_oxy.drift.SET_VOLUME"
         const val ACTION_SET_TIMER = "io.github.probably_oxy.drift.SET_TIMER"

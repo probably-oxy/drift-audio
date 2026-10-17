@@ -21,6 +21,8 @@ import com.google.common.util.concurrent.ListenableFuture
  */
 class MixerPlayer(
     private val engine: PlaybackEngine,
+    /** PNG bytes for the notification / lock-screen artwork (the Drift logo). */
+    private val artwork: ByteArray?,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
 
     private val availableCommands = Player.Commands.Builder()
@@ -43,15 +45,20 @@ class MixerPlayer(
             invalidateState()
         }
 
-    // A single item so the notification has something to label.
+    // A single item so the notification has something to label. It's marked
+    // live (dynamic, no duration), like a radio stream: the mix has no end, so
+    // the system media controls should draw no progress bar for it.
     private fun mixItem() = MediaItemData.Builder(/* uid = */ "drift-mix")
         .setMediaItem(MediaItem.Builder().setMediaId("drift-mix").build())
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle("Drift")
                 .setArtist(subtitle)
+                .apply { if (artwork != null) setArtworkData(artwork, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
                 .build(),
         )
+        .setIsDynamic(true)
+        .setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
         .build()
 
     init {
